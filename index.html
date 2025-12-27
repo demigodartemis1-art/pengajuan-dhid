@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Pengajuan - DH.ID</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script>
+        // Inisialisasi Tema
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0f172a',
+                        darkCard: '#1e293b',
+                    },
+                    borderRadius: {
+                        '4xl': '2rem',
+                        '5xl': '3rem',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; transition: background-color 0.3s; overflow-x: hidden; }
+        
+        .hidden-section { display: none; }
+        
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-up { animation: slideUp 0.4s ease-out forwards; }
+
+        #signature-pad {
+            touch-action: none;
+            cursor: crosshair;
+            width: 100% !important;
+            height: 200px !important;
+            background-color: transparent;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+
+        .avatar-glow {
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+        }
+
+        @media print {
+            body * { visibility: hidden; }
+            #reviewModal, #reviewModal * { visibility: visible; }
+            #reviewModal { position: absolute; left: 0; top: 0; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-darkBg min-h-screen text-slate-800 dark:text-slate-100">
+
+    <!-- SCREEN 1: LOGIN -->
+    <div id="loginScreen" class="fixed inset-0 z-[100] bg-blue-600 dark:bg-blue-900 flex items-center justify-center p-6">
+        <div class="bg-white dark:bg-darkCard p-8 md:p-12 rounded-5xl shadow-2xl w-full max-w-md animate-slide-up">
+            <div class="text-center mb-10">
+                <div class="bg-blue-50 dark:bg-blue-900/40 w-24 h-24 rounded-4xl flex items-center justify-center mx-auto mb-6 shadow-inner">
+                    <i class="fa-solid fa-fingerprint text-4xl text-blue-600 dark:text-blue-400"></i>
+                </div>
+                <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">DH.ID SYSTEM</h1>
+                <p class="text-slate-500 dark:text-slate-400 text-sm mt-2">Akses Terbatas Administrator</p>
+            </div>
+            <form id="loginForm" class="space-y-6">
+                <div class="relative">
+                    <input type="password" id="accessCode" required maxlength="4"
+                        class="w-full rounded-2xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 border p-5 text-center text-3xl tracking-[0.7em] focus:ring-4 focus:ring-blue-500/20 outline-none transition dark:text-white font-bold" 
+                        placeholder="••••">
+                </div>
+                <button type="submit" class="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg shadow-blue-500/30 transition-all transform active:scale-95 flex items-center justify-center space-x-3">
+                    <span>MASUK SISTEM</span>
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                </button>
+                <p id="loginError" class="text-red-500 text-xs text-center hidden font-semibold animate-pulse">PIN salah!</p>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP WRAPPER -->
+    <div id="mainApp" class="hidden-section min-h-screen flex flex-col">
+        
+        <!-- NAV -->
+        <nav class="bg-white/80 dark:bg-darkCard/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 p-4 md:px-10 sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div class="flex items-center space-x-3 cursor-pointer group" onclick="changeView('dashboard')">
+                    <div class="bg-blue-600 p-2.5 rounded-2xl text-white shadow-lg shadow-blue-500/40 group-hover:rotate-12 transition-transform">
+                        <i class="fa-solid fa-bolt-lightning text-lg"></i>
+                    </div>
+                    <span class="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">DH.ID</span>
+                </div>
+                
+                <div class="flex items-center space-x-2 md:space-x-5">
+                    <button onclick="toggleDarkMode()" class="p-3 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition">
+                        <i id="themeIcon" class="fa-solid fa-moon"></i>
+                    </button>
+                    <button onclick="changeView('data')" class="hidden md:flex items-center space-x-2 px-5 py-2.5 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition font-bold text-sm text-slate-600 dark:text-slate-300">
+                        <i class="fa-solid fa-chart-pie"></i>
+                        <span>Database</span>
+                    </button>
+                    <button onclick="openProfileSettings()" class="flex items-center space-x-3 p-1.5 pl-4 bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 transition-all">
+                        <span id="navUserName" class="hidden sm:inline font-bold text-xs">Admin</span>
+                        <img id="navUserPhoto" src="https://ui-avatars.com/api/?name=Admin&background=random" class="w-8 h-8 rounded-xl object-cover border border-white dark:border-slate-600 shadow-sm" alt="Profile">
+                    </button>
+                    <button onclick="logout()" class="p-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-2xl transition-colors">
+                        <i class="fa-solid fa-power-off"></i>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <main class="flex-grow p-4 md:p-8">
+            <!-- DASHBOARD -->
+            <div id="viewDashboard" class="max-w-6xl mx-auto animate-slide-up py-12">
+                <div class="text-center mb-16 space-y-4">
+                    <h1 class="text-7xl md:text-9xl font-black text-slate-900 dark:text-white tracking-tighter italic">Hallo!</h1>
+                    <p class="text-slate-500 dark:text-slate-400 text-lg md:text-xl font-medium max-w-xl mx-auto">Silahkan pilih sesuai kebutuhanmu disini
+			<p class="text-blue-600 dark:text-blue-400 font-bold">Pastikan isi sesuai dengan kartu identitas anda</span>.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 px-4">
+                    <button onclick="changeView('barang')" class="group relative bg-white dark:bg-darkCard p-12 rounded-5xl shadow-xl hover:shadow-2xl border border-slate-100 dark:border-slate-800 transition-all duration-500 overflow-hidden text-left">
+                        <div class="w-24 h-24 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-3xl flex items-center justify-center mb-8 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">
+                            <i class="fa-solid fa-box-open text-4xl"></i>
+                        </div>
+                        <h3 class="text-4xl font-extrabold text-slate-900 dark:text-white mb-2">Barang</h3>
+                        <p class="text-slate-500 dark:text-slate-400 font-medium">Pengajuan aset, inventaris, atau logistik.</p>
+                        <div class="mt-10 flex items-center text-blue-600 font-extrabold text-sm tracking-widest uppercase group-hover:translate-x-3 transition-transform">
+                            FORMULIR <i class="fa-solid fa-arrow-right ml-2"></i>
+                        </div>
+                    </button>
+
+                    <button onclick="changeView('uang')" class="group relative bg-white dark:bg-darkCard p-12 rounded-5xl shadow-xl hover:shadow-2xl border border-slate-100 dark:border-slate-800 transition-all duration-500 overflow-hidden text-left">
+                        <div class="w-24 h-24 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-3xl flex items-center justify-center mb-8 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300">
+                            <i class="fa-solid fa-wallet text-4xl"></i>
+                        </div>
+                        <h3 class="text-4xl font-extrabold text-slate-900 dark:text-white mb-2">Keuangan</h3>
+                        <p class="text-slate-500 dark:text-slate-400 font-medium">Pengajuan dana atau reimbursement.</p>
+                        <div class="mt-10 flex items-center text-emerald-600 font-extrabold text-sm tracking-widest uppercase group-hover:translate-x-3 transition-transform">
+                            FORMULIR <i class="fa-solid fa-arrow-right ml-2"></i>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- FORM -->
+            <div id="viewForm" class="hidden-section max-w-4xl mx-auto animate-slide-up space-y-6">
+                <div class="flex items-center space-x-5 mb-8">
+                    <button onclick="changeView('dashboard')" class="w-12 h-12 flex items-center justify-center bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                    <h2 id="formTitle" class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Formulir</h2>
+                </div>
+
+                <div class="bg-white dark:bg-darkCard rounded-4xl shadow-2xl border border-slate-100 dark:border-slate-800">
+                    <form id="dataForm" class="p-8 md:p-12 space-y-10">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="md:col-span-2">
+                                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Nama Pemohon</label>
+                                <input type="text" id="nama" required class="w-full rounded-2xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 border p-4 outline-none dark:text-white font-bold" placeholder="Nama Lengkap">
+                            </div>
+                            <input type="number" id="ktp" required class="w-full rounded-2xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 border p-4 outline-none dark:text-white font-bold" placeholder="NIK (16 Digit)">
+                            <input type="tel" id="tlp" required class="w-full rounded-2xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 border p-4 outline-none dark:text-white font-bold" placeholder="WhatsApp (08xx)">
+                            <textarea id="alamat" required rows="2" class="md:col-span-2 w-full rounded-2xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 border p-4 outline-none dark:text-white font-bold" placeholder="Alamat Domisili"></textarea>
+                        </div>
+
+                        <div id="inputBarang">
+                            <input type="text" id="barang" class="w-full rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 border p-4 outline-none dark:text-white font-bold" placeholder="Nama Barang">
+                        </div>
+                        
+                        <div id="inputUang" class="hidden space-y-6">
+                            <input type="text" id="tujuanUang" class="w-full rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 border p-4 outline-none dark:text-white font-bold" placeholder="Tujuan Dana">
+                            <input type="number" id="jumlah" class="w-full rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 border p-4 text-2xl font-black text-emerald-600 outline-none" placeholder="Nominal Rp">
+                        </div>
+
+                        <div class="space-y-4">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Tenor</label>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <label class="cursor-pointer"><input type="radio" name="tenor_opt" value="3 Bulan" class="peer hidden" checked onchange="toggleTenorManual(false)"><div class="p-3 text-center rounded-xl border-2 border-slate-200 dark:border-slate-700 peer-checked:border-blue-500 peer-checked:bg-blue-50 font-bold text-xs dark:text-white">3 Bln</div></label>
+                                <label class="cursor-pointer"><input type="radio" name="tenor_opt" value="6 Bulan" class="peer hidden" onchange="toggleTenorManual(false)"><div class="p-3 text-center rounded-xl border-2 border-slate-200 dark:border-slate-700 peer-checked:border-blue-500 peer-checked:bg-blue-50 font-bold text-xs dark:text-white">6 Bln</div></label>
+                                <label class="cursor-pointer"><input type="radio" name="tenor_opt" value="12 Bulan" class="peer hidden" onchange="toggleTenorManual(false)"><div class="p-3 text-center rounded-xl border-2 border-slate-200 dark:border-slate-700 peer-checked:border-blue-500 peer-checked:bg-blue-50 font-bold text-xs dark:text-white">12 Bln</div></label>
+                                <label class="cursor-pointer"><input type="radio" name="tenor_opt" value="Manual" class="peer hidden" onchange="toggleTenorManual(true)"><div class="p-3 text-center rounded-xl border-2 border-slate-200 dark:border-slate-700 peer-checked:border-blue-500 peer-checked:bg-blue-50 font-bold text-xs dark:text-white">Lainnya</div></label>
+                            </div>
+                            <div id="tenorManualWrapper" class="hidden mt-4">
+                                <input type="text" id="tenor_manual_input" class="w-full rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 border p-4 outline-none font-bold dark:text-white" placeholder="Tenor manual...">
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="flex justify-between px-1">
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tanda Tangan</label>
+                                <button type="button" onclick="clearSignature()" class="text-[10px] text-red-500 font-black">RESET</button>
+                            </div>
+                            <div class="rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 overflow-hidden">
+                                <canvas id="signature-pad"></canvas>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full py-6 bg-slate-900 dark:bg-blue-600 text-white font-black text-xl rounded-3xl shadow-xl transition-all active:scale-95">SUBMIT</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- DATABASE -->
+            <div id="viewData" class="hidden-section max-w-7xl mx-auto animate-slide-up space-y-6 py-6">
+                <div class="flex justify-between items-end mb-10 px-2">
+                    <div>
+                        <h2 class="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight italic">Database</h2>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">Daftar Pengajuan Masuk</p>
+                    </div>
+                    <button onclick="changeView('dashboard')" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-6 py-3 rounded-2xl font-black text-xs tracking-widest hover:bg-slate-50 transition-all shadow-sm">HOME</button>
+                </div>
+                
+                <div class="bg-white dark:bg-darkCard rounded-4xl shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 dark:bg-slate-900/50 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] border-b dark:border-slate-800">
+                                <tr>
+                                    <th class="p-8">Nama Pemohon</th>
+                                    <th class="p-8">Detail Pengajuan</th>
+                                    <th class="p-8 text-center">Tindakan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settingsModal" class="fixed inset-0 z-[150] bg-slate-900/80 backdrop-blur-md hidden items-center justify-center p-6">
+        <div class="bg-white dark:bg-darkCard w-full max-w-lg rounded-[3rem] shadow-2xl overflow-hidden animate-slide-up border border-slate-100 dark:border-slate-800">
+            <div class="p-8 bg-slate-50 dark:bg-slate-900/50 border-b dark:border-slate-800 flex justify-between items-center">
+                <h3 class="text-2xl font-black italic">Pengaturan Profil</h3>
+                <button onclick="closeSettings()" class="text-slate-400 hover:text-red-500"><i class="fa-solid fa-times text-xl"></i></button>
+            </div>
+            
+            <div class="p-8 space-y-10">
+                <div class="flex flex-col items-center space-y-6">
+                    <div class="relative group">
+                        <img id="settingPreviewPhoto" src="" class="w-28 h-28 rounded-3xl object-cover border-4 border-white dark:border-slate-700 shadow-xl avatar-glow" alt="Preview">
+                        <div class="absolute -bottom-2 -right-2 flex flex-col gap-2">
+                            <label for="photoInput" class="bg-blue-600 text-white w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer hover:bg-blue-700 shadow-lg">
+                                <i class="fa-solid fa-camera"></i>
+                                <input type="file" id="photoInput" class="hidden" accept="image/*" onchange="processProfilePhoto(this)">
+                            </label>
+                            <!-- FITUR BARU: HAPUS FOTO -->
+                            <button onclick="removeProfilePhoto()" class="bg-red-500 text-white w-10 h-10 rounded-xl flex items-center justify-center hover:bg-red-600 shadow-lg" title="Hapus Foto">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ubah atau Hapus Foto</p>
+                </div>
+
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Nama Pengguna</label>
+                        <input type="text" id="settingName" class="w-full rounded-2xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 border p-4 outline-none font-bold dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Ganti PIN Akses (4 Digit)</label>
+                        <input type="password" id="settingPin" maxlength="4" class="w-full rounded-2xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 border p-4 outline-none font-bold dark:text-white text-center tracking-[0.5em]" placeholder="••••">
+                    </div>
+                </div>
+
+                <button onclick="saveProfileSettings()" class="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-2xl shadow-lg transition transform active:scale-95">SIMPAN PERUBAHAN</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- REVIEW MODAL -->
+    <div id="reviewModal" class="fixed inset-0 z-[250] bg-slate-100 dark:bg-darkBg hidden flex-col overflow-y-auto">
+        <div class="max-w-4xl mx-auto w-full p-6 md:py-16">
+            <div class="bg-white dark:bg-darkCard rounded-[3rem] shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-slide-up relative">
+                <button onclick="closeReview()" class="absolute top-8 right-8 w-12 h-12 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-full text-slate-400 hover:text-red-500 transition-colors z-10">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+
+                <div class="bg-slate-900 p-12 text-center text-white relative">
+                    <div class="inline-block bg-blue-600 px-4 py-1 rounded-full text-[10px] font-black tracking-widest mb-4">ARSIP DIGITAL</div>
+                    <h3 class="text-4xl font-black italic tracking-tighter uppercase leading-none">Ringkasan Pengajuan</h3>
+                    <p class="text-slate-400 text-xs font-bold mt-4 uppercase tracking-[0.3em]" id="rv-date-header">00/00/0000 00:00</p>
+                </div>
+
+                <div class="p-10 md:p-16 space-y-12">
+                    <div class="space-y-6">
+                        <div class="flex items-center space-x-3 mb-4">
+                            <div class="w-2 h-6 bg-blue-600 rounded-full"></div>
+                            <h4 class="font-black text-sm uppercase tracking-widest text-slate-400">Informasi Pemohon</h4>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 bg-slate-50 dark:bg-slate-800/40 p-8 rounded-4xl border border-slate-100 dark:border-slate-700">
+                            <div>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nama Lengkap</p>
+                                <p id="rv-nama" class="text-2xl font-black text-slate-900 dark:text-white">-</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">NIK</p>
+                                <p id="rv-ktp" class="text-xl font-bold text-slate-600 dark:text-slate-300">-</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">WhatsApp</p>
+                                <p id="rv-tlp" class="text-xl font-bold text-slate-600 dark:text-slate-300">-</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Alamat</p>
+                                <p id="rv-alamat" class="text-sm font-bold text-slate-600 dark:text-slate-300 leading-relaxed">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div class="flex items-center space-x-3 mb-4">
+                            <div class="w-2 h-6 bg-emerald-500 rounded-full"></div>
+                            <h4 class="font-black text-sm uppercase tracking-widest text-slate-400">Detail Pengajuan</h4>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 bg-slate-50 dark:bg-slate-800/40 p-8 rounded-4xl border border-slate-100 dark:border-slate-700">
+                            <div class="md:col-span-2">
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Detail</p>
+                                <p id="rv-detail" class="text-2xl font-black text-blue-600">-</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Nominal</p>
+                                <p id="rv-jumlah" class="text-3xl font-black text-emerald-600">Rp 0</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tenor</p>
+                                <p id="rv-tenor" class="text-xl font-black text-slate-900 dark:text-white">-</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-10 flex flex-col items-center justify-center border-t dark:border-slate-800">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-8">Pengesahan Digital</p>
+                        <img id="rv-sig" src="" class="h-40 w-auto grayscale opacity-80" alt="TTD">
+                        <div class="mt-4 border-t-2 border-slate-900 dark:border-white pt-4 w-72 text-center">
+                            <p id="rv-nama-footer" class="font-black text-lg uppercase tracking-widest text-slate-900 dark:text-white">-</p>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Pemohon</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-10 bg-slate-50 dark:bg-slate-900/50 flex flex-col md:flex-row gap-4 items-center justify-center">
+                    <button onclick="closeReview()" class="w-full md:w-auto px-16 py-6 bg-blue-600 hover:bg-blue-700 text-white font-black text-xl rounded-3xl shadow-2xl transition transform active:scale-95">SELESAI</button>
+                    <button onclick="window.print()" class="w-full md:w-auto px-10 py-6 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black rounded-3xl hover:bg-slate-300 transition">CETAK PDF</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WA MODAL -->
+    <div id="waModal" class="fixed inset-0 z-[120] bg-slate-900/80 hidden items-center justify-center p-6 backdrop-blur-md">
+        <div class="bg-white dark:bg-darkCard rounded-5xl shadow-2xl w-full max-w-md p-8 text-center space-y-6">
+            <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto"><i class="fa-brands fa-whatsapp text-4xl"></i></div>
+            <h3 class="text-2xl font-black">Kirim WhatsApp?</h3>
+            <div class="flex flex-col gap-3">
+                <button id="btnSendWA" class="w-full py-4 bg-emerald-600 text-white font-black rounded-2xl">KIRIM SEKARANG</button>
+                <button onclick="closeWAModal()" class="w-full py-4 bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold rounded-2xl">BATAL</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-4 rounded-2xl shadow-2xl opacity-0 translate-y-10 transition-all duration-500 z-[300] font-bold">
+        <span id="toastMsg">Berhasil!</span>
+    </div>
+
+    <script>
+        // State
+        let submissions = JSON.parse(localStorage.getItem('dh_v3_data')) || [];
+        let currentFormType = 'barang';
+        let lastSubmission = null;
+        
+        let userData = JSON.parse(localStorage.getItem('dh_v3_user')) || {
+            name: 'Admin',
+            pin: '1234',
+            photo: `https://ui-avatars.com/api/?name=Admin&background=random`
+        };
+
+        const canvas = document.getElementById('signature-pad');
+        const ctx = canvas.getContext('2d');
+        let drawing = false;
+
+        window.onload = () => {
+            updateProfileUI();
+            updateThemeUI();
+        };
+
+        function toggleDarkMode() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateThemeUI();
+        }
+
+        function updateThemeUI() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const icon = document.getElementById('themeIcon');
+            if(icon) icon.className = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+            if (canvas) resizeCanvas(); 
+        }
+
+        function logout() { location.reload(); }
+
+        // Navigation
+        function changeView(view) {
+            document.querySelectorAll('main > div').forEach(d => d.classList.add('hidden-section'));
+            if (view === 'dashboard') document.getElementById('viewDashboard').classList.remove('hidden-section');
+            else if (view === 'barang' || view === 'uang') {
+                currentFormType = view;
+                document.getElementById('viewForm').classList.remove('hidden-section');
+                document.getElementById('formTitle').innerText = view === 'barang' ? 'Pengajuan Barang' : 'Pengajuan Keuangan';
+                document.getElementById('inputBarang').classList.toggle('hidden', view === 'uang');
+                document.getElementById('inputUang').classList.toggle('hidden', view === 'barang');
+                setTimeout(resizeCanvas, 200);
+            } else if (view === 'data') {
+                document.getElementById('viewData').classList.remove('hidden-section');
+                renderTable();
+            }
+        }
+
+        // Profile Management
+        function openProfileSettings() {
+            document.getElementById('settingName').value = userData.name;
+            document.getElementById('settingPin').value = userData.pin;
+            document.getElementById('settingPreviewPhoto').src = userData.photo;
+            document.getElementById('settingsModal').classList.replace('hidden', 'flex');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.replace('flex', 'hidden');
+        }
+
+        function processProfilePhoto(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvasTemp = document.createElement('canvas');
+                        const MAX_WIDTH = 200;
+                        const scaleSize = MAX_WIDTH / img.width;
+                        canvasTemp.width = MAX_WIDTH;
+                        canvasTemp.height = img.height * scaleSize;
+                        const ctxTemp = canvasTemp.getContext('2d');
+                        ctxTemp.drawImage(img, 0, 0, canvasTemp.width, canvasTemp.height);
+                        const compressedBase64 = canvasTemp.toDataURL('image/jpeg', 0.7);
+                        document.getElementById('settingPreviewPhoto').src = compressedBase64;
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        /** FITUR BARU: HAPUS FOTO PROFIL **/
+        function removeProfilePhoto() {
+            const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name)}&background=random`;
+            document.getElementById('settingPreviewPhoto').src = defaultAvatar;
+            showToast("Foto dihapus dari antrean simpan");
+        }
+
+        function saveProfileSettings() {
+            const newName = document.getElementById('settingName').value.trim();
+            const newPin = document.getElementById('settingPin').value.trim();
+            const newPhoto = document.getElementById('settingPreviewPhoto').src;
+
+            if (newName && newPin.length === 4) {
+                try {
+                    userData.name = newName;
+                    userData.pin = newPin;
+                    userData.photo = newPhoto;
+                    localStorage.setItem('dh_v3_user', JSON.stringify(userData));
+                    updateProfileUI();
+                    closeSettings();
+                    showToast("Profil Diperbarui!");
+                } catch (e) {
+                    showToast("Memori Penuh! Hapus foto profil.");
+                }
+            } else {
+                showToast("Data tidak valid!");
+            }
+        }
+
+        function updateProfileUI() {
+            document.getElementById('navUserName').innerText = userData.name;
+            document.getElementById('welcomeName').innerText = userData.name;
+            document.getElementById('navUserPhoto').src = userData.photo;
+        }
+
+        // Auth
+        document.getElementById('loginForm').onsubmit = (e) => {
+            e.preventDefault();
+            if(document.getElementById('accessCode').value === userData.pin) {
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden-section');
+                showToast(`Selamat datang, ${userData.name}`);
+            } else {
+                document.getElementById('loginError').classList.remove('hidden');
+                document.getElementById('accessCode').value = '';
+            }
+        };
+
+        // Form & Signature Logic
+        function toggleTenorManual(show) { document.getElementById('tenorManualWrapper').classList.toggle('hidden', !show); }
+
+        function resizeCanvas() {
+            const parent = canvas.parentElement;
+            if(!parent) return;
+            canvas.width = parent.clientWidth;
+            canvas.height = 200;
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = document.documentElement.classList.contains('dark') ? '#60a5fa' : '#1e3a8a';
+            ctx.lineCap = 'round';
+        }
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return { x: (e.touches ? e.touches[0].clientX : e.clientX) - rect.left, y: (e.touches ? e.touches[0].clientY : e.clientY) - rect.top };
+        }
+
+        canvas.addEventListener('mousedown', (e) => { drawing = true; ctx.beginPath(); const p = getPos(e); ctx.moveTo(p.x, p.y); });
+        canvas.addEventListener('mousemove', (e) => { if(!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); });
+        canvas.addEventListener('mouseup', () => drawing = false);
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); drawing = true; ctx.beginPath(); const p = getPos(e); ctx.moveTo(p.x, p.y); });
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); if(!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); });
+        canvas.addEventListener('touchend', () => drawing = false);
+
+        function clearSignature() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
+        document.getElementById('dataForm').onsubmit = (e) => {
+            e.preventDefault();
+            let selectedTenor = document.querySelector('input[name="tenor_opt"]:checked').value;
+            if (selectedTenor === 'Manual') selectedTenor = document.getElementById('tenor_manual_input').value;
+
+            const data = {
+                id: Date.now(),
+                nama: document.getElementById('nama').value,
+                ktp: document.getElementById('ktp').value,
+                alamat: document.getElementById('alamat').value,
+                tlp: document.getElementById('tlp').value,
+                type: currentFormType,
+                detail: currentFormType === 'barang' ? document.getElementById('barang').value : document.getElementById('tujuanUang').value,
+                jumlah: currentFormType === 'uang' ? document.getElementById('jumlah').value : '0',
+                tenor: selectedTenor,
+                sig: canvas.toDataURL('image/png'),
+                date: new Date().toLocaleString('id-ID')
+            };
+
+            try {
+                submissions.unshift(data);
+                localStorage.setItem('dh_v3_data', JSON.stringify(submissions));
+                lastSubmission = data;
+                showToast("Data Terkirim!");
+                e.target.reset(); clearSignature(); openWAModal();
+            } catch (err) {
+                showToast("Penyimpanan Penuh!");
+            }
+        };
+
+        function renderTable() {
+            const body = document.getElementById('tableBody');
+            if (submissions.length === 0) {
+                body.innerHTML = `<tr><td colspan="3" class="p-20 text-center text-slate-400 font-bold italic">Belum ada pengajuan masuk...</td></tr>`;
+                return;
+            }
+            body.innerHTML = submissions.map(s => `
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                    <td class="p-8">
+                        <div class="font-black dark:text-white">${s.nama}</div>
+                        <div class="text-[10px] text-slate-400 uppercase font-black tracking-widest mt-1">${s.ktp}</div>
+                    </td>
+                    <td class="p-8">
+                        <div class="text-sm font-bold text-slate-600 dark:text-slate-300 leading-tight">${s.detail}</div>
+                        <div class="flex items-center space-x-2 mt-2">
+                            <span class="text-[9px] font-black uppercase ${s.type === 'uang' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'} px-2 py-0.5 rounded-full">${s.type}</span>
+                            <span class="text-[9px] font-black uppercase text-slate-400">Tenor: ${s.tenor}</span>
+                        </div>
+                    </td>
+                    <td class="p-8 text-center">
+                        <div class="flex justify-center space-x-2">
+                            <button onclick="openReview(${s.id})" title="Review Full" class="p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 hover:bg-blue-600 hover:text-white rounded-2xl transition-all"><i class="fa-solid fa-expand"></i></button>
+                            <button onclick="sendToWAById(${s.id})" title="Kirim WA" class="p-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-2xl transition-all"><i class="fa-brands fa-whatsapp"></i></button>
+                            <button onclick="deleteData(${s.id})" title="Hapus" class="p-3 bg-red-50 dark:bg-red-900/20 text-red-600 hover:bg-red-600 hover:text-white rounded-2xl transition-all"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openReview(id) {
+            const data = submissions.find(s => s.id === id);
+            if (!data) return;
+            document.getElementById('rv-date-header').innerText = data.date;
+            document.getElementById('rv-nama').innerText = data.nama;
+            document.getElementById('rv-nama-footer').innerText = data.nama;
+            document.getElementById('rv-ktp').innerText = data.ktp;
+            document.getElementById('rv-tlp').innerText = data.tlp;
+            document.getElementById('rv-alamat').innerText = data.alamat;
+            document.getElementById('rv-detail').innerText = data.detail;
+            document.getElementById('rv-jumlah').innerText = data.type === 'uang' ? `Rp ${Number(data.jumlah).toLocaleString('id-ID')}` : '-';
+            document.getElementById('rv-tenor').innerText = data.tenor;
+            document.getElementById('rv-sig').src = data.sig;
+            document.getElementById('reviewModal').classList.replace('hidden', 'flex');
+        }
+
+        function closeReview() { document.getElementById('reviewModal').classList.replace('flex', 'hidden'); }
+
+        function deleteData(id) { 
+            if(confirm('Hapus data pengajuan ini secara permanen?')) { 
+                submissions = submissions.filter(s => s.id !== id); 
+                localStorage.setItem('dh_v3_data', JSON.stringify(submissions)); 
+                renderTable(); 
+                showToast("Data Dihapus");
+            } 
+        }
+
+        function openWAModal() { document.getElementById('waModal').classList.replace('hidden', 'flex'); document.getElementById('btnSendWA').onclick = () => sendToWA(lastSubmission); }
+        function closeWAModal() { document.getElementById('waModal').classList.replace('flex', 'hidden'); changeView('data'); }
+        function sendToWAById(id) { sendToWA(submissions.find(s => s.id === id)); }
+
+        function sendToWA(data) {
+            if(!data) return;
+            const formattedJumlah = data.type === 'uang' ? `Rp ${Number(data.jumlah).toLocaleString('id-ID')}` : '-';
+            const msg = `*DATA PENGAJUAN DIGITAL - DH.ID*\n` +
+                        `------------------------------------------\n` +
+                        `📌 *INFO PEMOHON*\n` +
+                        `• Nama: ${data.nama}\n` +
+                        `• NIK: ${data.ktp}\n` +
+                        `• No. WA: ${data.tlp}\n` +
+                        `• Alamat: ${data.alamat}\n\n` +
+                        `📋 *DETAIL PENGAJUAN*\n` +
+                        `• ID: #${data.id}\n` +
+                        `• Tipe: ${data.type.toUpperCase()}\n` +
+                        `• Detail: ${data.detail}\n` +
+                        `• Nominal: ${formattedJumlah}\n` +
+                        `• Tenor: ${data.tenor}\n` +
+                        `------------------------------------------`;
+            const dummy = document.createElement("textarea"); document.body.appendChild(dummy); dummy.value = msg; dummy.select(); document.execCommand('copy'); document.body.removeChild(dummy);
+            window.open(`https://api.whatsapp.com/send?phone=${data.tlp}&text=${encodeURIComponent(msg)}`, '_blank');
+            closeWAModal();
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast'); document.getElementById('toastMsg').innerText = msg;
+            t.classList.remove('opacity-0', 'translate-y-10');
+            setTimeout(() => t.classList.add('opacity-0', 'translate-y-10'), 3000);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+    </script>
+</body>
+</html>
